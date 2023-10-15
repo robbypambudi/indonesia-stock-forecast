@@ -19,7 +19,7 @@ tf.config.list_physical_devices('GPU')
 
 class Forecasting:
     def __init__(self, args):
-        
+
         self.code = args.code
         self.type = args.type
         self.lookback = args.lookback
@@ -29,10 +29,10 @@ class Forecasting:
         self.callbacks = args.callbacks
         self.model = args.model
         self.column_target = 'Close'
-        
+
         self.models_graph = ['TFGCNGRU','TFGCNLSTM']
         self.is_graph = True if self.model in self.models_graph else False
-        
+
         if args.list_of_code:
             self.IssuerCode(True)
         else:
@@ -46,14 +46,14 @@ class Forecasting:
             self.create_folder(self.path_result_evaluations)
             self.create_folder(self.path_result_models)
             self.create_folder(self.path_result_plots)
-            self.create_folder(self.path_result_datas)            
+            self.create_folder(self.path_result_datas)
 
             self.ProcessForecasting()
 
     def create_folder(self, path):
         if not os.path.exists(path):
             os.mkdir(path)
-            
+
     def IssuerCode(self, state=False):
         issuers = pd.read_csv('data/list_of_issuer-20230322.csv',sep=';')
         issuer_filtered = []
@@ -68,7 +68,7 @@ class Forecasting:
                 var = np.var(data_test) # calculate variance from data test
                 if (last_date_row[:4] == '2023' and len(historical) >= 200 and var > 0):
                     issuer_filtered.append(code_stock)
-        
+
         if state:
             print("Code of Stock Issuer: {}".format(issuer_filtered))
         else:
@@ -94,14 +94,14 @@ class Forecasting:
                 historical.Date = pd.to_datetime(historical.Date).dt.date
                 historical = historical.set_index(historical.Date)
                 historical = historical.drop(['Date'], axis=1)
-                
-                
+
+
                 for lookback in lookbacks:
                     fix_seed = 2023
                     random.seed(fix_seed)
                     tf.random.set_seed(fix_seed)
                     np.random.seed(fix_seed)
-                    
+
                     dataset = historical
                     prediction_days = int(len(dataset) * 0.2)
 
@@ -120,7 +120,7 @@ class Forecasting:
                         )
                         x_train, x_test, y_train, y_test = pp.dataset_multivariate(
                             dataset, self.column_target, lookback, prediction_days, self.batch_size)
-                    elif self.type == 2:                        
+                    elif self.type == 2:
                         type_dataset = 'multivariate_graph'
                         pp = preprocessing(
                             self.scaler, f'{self.model}_{type_dataset}', f'{code_stock}_{lookback}', self.path_result_datas
@@ -130,7 +130,7 @@ class Forecasting:
 
                     self.create_folder(
                         f'{self.path_result_models}{self.model}_{type_dataset}/')
-                    
+
                     checkfiles = f'{self.path_result_evaluations}{self.model}_{type_dataset}/{code_stock}_{lookback}_test_score.json'
                     if os.path.exists(checkfiles) == False:
                         print(f'\n############# Build model {self.model} {type_dataset} {code_stock}...')
@@ -142,14 +142,23 @@ class Forecasting:
                             model = architecture.build_model(x_input_shape=x_train.shape[1:], g_input_shape=a_train.shape[1:])
                         else:
                             model = architecture.build_model(input_shape=x_train.shape[1:])
-                        
+
+                        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+                            initial_learning_rate=0.01,
+                            decay_steps=10000,
+                            decay_rate=0.9
+                        )
+
+                        optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+
                         model.compile(
                             loss="mse",
-                            optimizer=tf.keras.optimizers.Adam(
-                                learning_rate=1e-3, decay=1e-3),
-                            metrics=[tf.keras.metrics.MeanAbsolutePercentageError(),
-                                    tf.keras.metrics.MeanAbsoluteError(),
-                                    tf.keras.metrics.RootMeanSquaredError()]
+                            optimizer=optimizer,
+                            metrics=[
+                                tf.keras.metrics.MeanAbsolutePercentageError(),
+                                tf.keras.metrics.MeanAbsoluteError(),
+                                tf.keras.metrics.RootMeanSquaredError()
+                            ]
                         )
                         model.summary()
 
@@ -182,7 +191,7 @@ class Forecasting:
 
                         print(
                             f'\n############# Prediction & Save model {self.model} {type_dataset} {code_stock}...')
-                        
+
                         if(self.is_graph):
                             y_pred_train = model.predict((x_train, a_train))
                             y_pred_test = model.predict((x_test, a_test))
@@ -206,8 +215,8 @@ class Forecasting:
                             filename=f'{code_stock}_{lookback}_train',
                             title_plot=f'Forecasting Stock {code_stock} TRAIN_{lookback}',
                             x_label='Time', y_label='Stock Price',
-                            path_datas=self.path_result_datas, 
-                            path_evaluations=self.path_result_evaluations, 
+                            path_datas=self.path_result_datas,
+                            path_evaluations=self.path_result_evaluations,
                             path_plots=self.path_result_plots)
 
                         score_test = evaluation(
@@ -217,8 +226,8 @@ class Forecasting:
                             filename=f'{code_stock}_{lookback}_test',
                             title_plot=f'Forecasting Stock {code_stock} TEST_{lookback}',
                             x_label='Time', y_label='Stock Price',
-                            path_datas=self.path_result_datas, 
-                            path_evaluations=self.path_result_evaluations, 
+                            path_datas=self.path_result_datas,
+                            path_evaluations=self.path_result_evaluations,
                             path_plots=self.path_result_plots)
 
                         print(score_train.measure_performance())
@@ -229,7 +238,7 @@ class Forecasting:
                         gc.collect()
 
 
-def main(args):    
+def main(args):
     Forecasting(args)
     # pass
 

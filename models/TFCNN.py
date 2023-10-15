@@ -1,6 +1,4 @@
 import tensorflow as tf
-
-
 class TFCNN:
     def __init__(self, n_classes=1):
         # Get model hyperparameters
