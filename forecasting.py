@@ -31,7 +31,9 @@ class Forecasting:
         self.column_target = 'Close'
 
         self.models_graph = ['TFGCNGRU','TFGCNLSTM']
-        self.is_graph = True if self.model in self.models_graph else False
+        # Transormer model 
+        self.models_transformer = ['TFTFR']
+        self.is_graph = 1 if self.model in self.models_graph else 2 if self.model in self.models_transformer else 0
 
         if args.list_of_code:
             self.IssuerCode(True)
@@ -138,8 +140,17 @@ class Forecasting:
                         module = module_globals[self.model]
                         architecture = module(n_classes=1)
                         # Graph
-                        if(self.is_graph):
+                        if(self.is_graph == 1):
                             model = architecture.build_model(x_input_shape=x_train.shape[1:], g_input_shape=a_train.shape[1:])
+                        elif(self.is_graph == 2):
+                            model = architecture.build_model(input_shape=x_train.shape[1:],head_size=128,
+                                                            num_heads=4, 
+                                                            ff_dim=2, 
+                                                            num_transformer_blocks=2, 
+                                                            mpl_units=[256],
+                                                            mlp_dropout=0.10,
+                                                            dropout=0.10,
+                                                            attention_axes=1)
                         else:
                             model = architecture.build_model(input_shape=x_train.shape[1:])
 
@@ -178,10 +189,15 @@ class Forecasting:
                             ]
 
                         print(f'\n############# Training model {self.model} {type_dataset} {code_stock}...')
-                        if(self.is_graph):
+                        if(self.is_graph == 1):
                             history = model.fit([x_train, a_train], y_train, epochs=self.epoch,
                                                 batch_size=self.batch_size,
                                                 validation_data=([x_test, a_test], y_test),
+                                                callbacks=(callbacks if self.callbacks == 1 else None))
+                        elif(self.is_graph == 2):
+                            history = model.fit(x_train, y_train, epochs=self.epoch,
+                                                batch_size=self.batch_size,
+                                                validation_data=(x_test, y_test),
                                                 callbacks=(callbacks if self.callbacks == 1 else None))
                         else:
                             history = model.fit(x_train, y_train, epochs=self.epoch,
@@ -192,9 +208,12 @@ class Forecasting:
                         print(
                             f'\n############# Prediction & Save model {self.model} {type_dataset} {code_stock}...')
 
-                        if(self.is_graph):
+                        if(self.is_graph == 1):
                             y_pred_train = model.predict((x_train, a_train))
                             y_pred_test = model.predict((x_test, a_test))
+                        elif(self.is_graph == 2):
+                            y_pred_train = model.predict(x_train)
+                            y_pred_test = model.predict(x_test)
                         else:
                             y_pred_train = model.predict(x_train)
                             y_pred_test = model.predict(x_test)
@@ -230,8 +249,8 @@ class Forecasting:
                             path_evaluations=self.path_result_evaluations,
                             path_plots=self.path_result_plots)
 
-                        print(score_train.measure_performance())
-                        print(score_test.measure_performance())
+                        # print(score_train.measure_performance())
+                        # print(score_test.measure_performance())
 
                         del model
                         tf.keras.backend.clear_session()
@@ -262,6 +281,6 @@ if __name__ == '__main__':
     parser.add_argument("--callbacks", type=int,
                         default=0, help="Callbacks (Early Stopping & Model Checkpoint) 0: False; 1: True")
     parser.add_argument(
-        "--model", type=str, default='TFCNN', help="TFCNN; TFCNNLSTM; TFCNNGRU; \nTFGRU; TFGRUCNN; TFGRULSTM; \nTFLSTM; TFLSTMCNN; TFLSTMGRU; \nTFGCNGRU; TFGCNLSTM")
+        "--model", type=str, default='TFCNN', help="TFCNN; TFCNNLSTM; TFCNNGRU; \nTFGRU; TFGRUCNN; TFGRULSTM; \nTFLSTM; TFLSTMCNN; TFLSTMGRU; \nTFGCNGRU; TFGCNLSTM; TFTFR")
     args = parser.parse_args()
     main(args)

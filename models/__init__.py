@@ -10,3 +10,5 @@ from .TFLSTMGRU import TFLSTMGRU
 
 from .TFGCNGRU import TFGCNGRU
 from .TFGCNLSTM import TFGCNLSTM
+
+from .TFTFR import TFTFR
