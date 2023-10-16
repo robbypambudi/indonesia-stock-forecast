@@ -86,7 +86,7 @@ class Forecasting:
 
         for code in codes:
             if code not in issuer:
-                print(f'\n Code {code_stock} is not valid, please check command')
+                print(f'\n Code {code} is not valid, please check command')
             else:
                 print('\n############# Load dataset...')
                 code_stock = code
