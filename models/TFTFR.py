@@ -5,63 +5,60 @@ class TFTFR:
         # Get model hyperparameters
         self.n_classes = n_classes
 
-    # def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0, epsilon=1e-6, attention_axes=None, kernel_size=1):
-    #     x = tf.keras.layers.LayerNormalization(epsilon=epsilon)(inputs)
-    #     x = tf.keras.layers.MultiHeadAttention(
-    #         key_dim=head_size, num_heads=num_heads, dropout=dropout,
-    #         attention_axes=attention_axes)(x, x)
-    #     x = tf.keras.layers.Dropout(dropout)(x) 
-    #     res = x + inputs
+    def transformer_encoder(self, inputs):
+        x = tf.keras.layers.LayerNormalization(epsilon=1e-6)(inputs)
+        x = tf.keras.layers.MultiHeadAttention(
+            key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)(x, x)
+        x = tf.keras.layers.Dropout(self.dropout)(x)
+        res = x + inputs
 
-    #     # Feed Forward Part
-    #     x = tf.keras.layers.LayerNormalization(epsilon=epsilon)(res)
-    #     x = tf.keras.layers.Conv1D(filters=ff_dim, kernel_size=kernel_size, activation='relu')(x)
-    #     x = tf.keras.layers.Dropout(dropout)(x)
-    #     x = tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=kernel_size)(x)
-    #     return x + res
+        # Feed Forward Part
+        x = tf.keras.layers.LayerNormalization(epsilon=1e-6)(res)
+
+        x = tf.keras.layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation='relu')(x)
+        x = tf.keras.layers.Dropout(self.dropout)(x)
+        x = tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
+        return  x + res
 
     def build_model(self,
                     input_shape,
-                    head_size,
-                    num_heads,
-                    ff_dim,
-                    num_transformer_blocks,
-                    mpl_units,
-                    dropout=0,
-                    mlp_dropout=0,
-                    epsilon=1e-6,
-                    attention_axes=None,
-                    kernel_size=1):
+                    head_size=128,
+                    num_heads=4,
+                    ff_dim=2,
+                    num_transformer_blocks=4,
+                    mpl_units=[256],
+                    dropout=0.25,
+                    mlp_dropout=0.4,
+                    ):
 
         """
         Creates final model transformer encoder block.
         """
         self.dropout = dropout
+        self.head_size = head_size
+        self.num_heads = num_heads
+        self.ff_dim = ff_dim
+        self.num_transformer_blocks = num_transformer_blocks
+        self.mpl_units = mpl_units
+        self.mlp_dropout = mlp_dropout
 
         inputs = tf.keras.Input(shape=input_shape)
         x = inputs
 
-        for _ in range(num_transformer_blocks):
-            x = tf.keras.layers.LayerNormalization(epsilon=epsilon)(inputs)
-            x = tf.keras.layers.MultiHeadAttention(
-                key_dim=head_size, num_heads=num_heads, dropout=dropout,
-                attention_axes=attention_axes)(x, x)
-            x = tf.keras.layers.Dropout(dropout)(x) 
-            res = x + inputs
+        # Positional Encoding
+        position_embedding = tf.keras.layers.Embedding(input_shape[0], input_shape[1])(tf.range(0, input_shape[0]))
+        encoded_inputs = x + position_embedding
 
-            # Feed Forward Part
-            x = tf.keras.layers.LayerNormalization(epsilon=epsilon)(res)
-            x = tf.keras.layers.Conv1D(filters=ff_dim, kernel_size=kernel_size, activation='relu')(x)
-            x = tf.keras.layers.Dropout(dropout)(x)
-            x = tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=kernel_size)(x)
-            x = x + res        
-        
+
+        for _ in range(num_transformer_blocks):
+          x = self.transformer_encoder(encoded_inputs)
+
         x = tf.keras.layers.GlobalAveragePooling1D(data_format='channels_first')(x)
 
         for dim in mpl_units:
             x = tf.keras.layers.Dense(dim, activation='relu')(x)
-            x = tf.keras.layers.Dropout(self.dropout)(x)
-        
-        outputs = tf.keras.layers.Dense(self.n_classes, activation='sigmoid')(x)
+            x = tf.keras.layers.Dropout(self.mlp_dropout)(x)
+
+        outputs = tf.keras.layers.Dense(self.n_classes)(x)
 
         return tf.keras.Model(inputs, outputs)
