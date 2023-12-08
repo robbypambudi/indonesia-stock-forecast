@@ -1,24 +1,66 @@
 import tensorflow as tf
+import numpy as np
 
 class TFTFR:
     def __init__(self, n_classes=1):
         # Get model hyperparameters
         self.n_classes = n_classes
 
+    def get_angles(self, pos, i, d_model):
+        angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
+        return pos * angle_rates
+
+    def positional_encoding(self, position, d_model):
+        """
+        Creates positional encoding matrix.
+        """
+        
+        angle_rads = self.get_angles(np.arange(position)[:, np.newaxis],
+                                     np.arange(d_model)[np.newaxis, :],
+                                     d_model)
+
+        # apply sin to even indices in the array; 2i
+        angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
+
+        # apply cos to odd indices in the array; 2i+1
+        angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+
+        pos_encoding = angle_rads[np.newaxis, ...]
+
+        return tf.cast(pos_encoding, dtype=tf.float32)
+    
+    def feed_forward(self, inputs):
+        """
+        Creates feed forward block for transformer encoder.
+        """
+        seq = tf.keras.Sequential([
+            tf.keras.layers.Dense(self.ff_dim, activation='relu'),
+            tf.keras.layers.Dense(inputs.shape[-1]),
+            tf.keras.layers.Dropout(self.dropout)
+        ])
+
+        add = tf.keras.layers.Add()
+        layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
+        x = add([inputs, seq(inputs)])
+        x = layer_norm(x)
+
+        return x
+
     def transformer_encoder(self, inputs):
+        # Multi-Head Attention Block
         x = tf.keras.layers.LayerNormalization(epsilon=1e-6)(inputs)
         x = tf.keras.layers.MultiHeadAttention(
             key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)(x, x)
         x = tf.keras.layers.Dropout(self.dropout)(x)
         res = x + inputs
 
-        # Feed Forward Part
+        # Feed Forward Block
         x = tf.keras.layers.LayerNormalization(epsilon=1e-6)(res)
+        x = self.feed_forward(x)
+        res = x + res
 
-        x = tf.keras.layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation='relu')(x)
-        x = tf.keras.layers.Dropout(self.dropout)(x)
-        x = tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
-        return  x + res
+        return res
 
     def build_model(self,
                     input_shape,
@@ -46,12 +88,12 @@ class TFTFR:
         x = inputs
 
         # Positional Encoding
-        position_embedding = tf.keras.layers.Embedding(input_shape[0], input_shape[1])(tf.range(0, input_shape[0]))
-        encoded_inputs = x + position_embedding
+        pos_encoding = self.positional_encoding(input_shape[0], input_shape[1])
+        x = x + pos_encoding
 
 
         for _ in range(num_transformer_blocks):
-          x = self.transformer_encoder(encoded_inputs)
+          x = self.transformer_encoder(x)
 
         x = tf.keras.layers.GlobalAveragePooling1D(data_format='channels_first')(x)
 
