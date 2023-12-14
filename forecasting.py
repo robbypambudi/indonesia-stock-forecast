@@ -234,9 +234,11 @@ class Forecasting:
                         print(score_train.measure_performance())
                         print(score_test.measure_performance())
 
-                        del model
+                        # Set null to free memory   
+                        del x_train, x_test, y_train, y_test, y_pred_train, y_pred_test, score_train, score_test, history, model
                         tf.keras.backend.clear_session()
                         gc.collect()
+                        print('\n############# Done') 
 
 
 def main(args):
