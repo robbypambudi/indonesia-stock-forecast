@@ -1,0 +1,52 @@
+{
+    "DOWN": {
+<<<<<<< HEAD
+        "precision": 0.6428571428571429,
+        "recall": 0.11842105263157894,
+        "f1-score": 0.19999999999999998,
+        "support": 76.0
+    },
+    "UP": {
+        "precision": 0.3963963963963964,
+        "recall": 0.8979591836734694,
+        "f1-score": 0.55,
+        "support": 49.0
+    },
+    "accuracy": 0.424,
+    "macro avg": {
+        "precision": 0.5196267696267697,
+        "recall": 0.5081901181525241,
+        "f1-score": 0.375,
+        "support": 125.0
+    },
+    "weighted avg": {
+        "precision": 0.5462445302445303,
+        "recall": 0.424,
+        "f1-score": 0.33720000000000006,
+=======
+        "precision": 0.6666666666666666,
+        "recall": 0.13157894736842105,
+        "f1-score": 0.21978021978021978,
+        "support": 76.0
+    },
+    "UP": {
+        "precision": 0.4,
+        "recall": 0.8979591836734694,
+        "f1-score": 0.5534591194968553,
+        "support": 49.0
+    },
+    "accuracy": 0.432,
+    "macro avg": {
+        "precision": 0.5333333333333333,
+        "recall": 0.5147690655209453,
+        "f1-score": 0.38661966963853756,
+        "support": 125.0
+    },
+    "weighted avg": {
+        "precision": 0.5621333333333334,
+        "recall": 0.432,
+        "f1-score": 0.35058234846914094,
+>>>>>>> d5f42532be6a9c18a5da3fb21b671ebbe5b6efbf
+        "support": 125.0
+    }
+}
